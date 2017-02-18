@@ -15,6 +15,7 @@ class DBManager:
     def __init__(self, user_mode):
         self.user_mode = user_mode
         self.is_online = None
+        self.interface = None
         if not user_mode:
             self.interface = Interface()
 
@@ -70,7 +71,7 @@ class DBManager:
 
 if __name__ == '__main__':
     import argparse
-    argparser = argparse.ArgumentParser(description="Easy Porn storage combining via webinterface")
+    argparser = argparse.ArgumentParser(description="Keeps your Wifi logged into the Wifionice")
     argparser.add_argument('-u', '--user_mode', action='store_true',
                            help='Run as unprivileged user, do everything possible without root')
 

@@ -7,9 +7,11 @@ class Interface:
 
     def __init__(self):
         self.name = self._get_correct_interface()
+        if self.name is None:
+            logging.info('Wifi-connection most likely broken')
         self.mac_address = self._get_mac_from_interface(self.name)
         if not self.mac_address:
-            logging.warning('Could not get MAC address, Problem during interface recognition!')
+            logging.warning('Could not get MAC address')
 
     def _get_mac_from_interface(self, interface):
         """ Get MAC-address by calling ip link show and parsing that output """
