@@ -66,9 +66,9 @@ class DBManager:
         while retries > 0:
             try:
                 if post:
-                    return requests.post(address+url_suffix, data=data, timeout=2)
+                    return requests.post('http://'+address+url_suffix, data=data, timeout=2)
                 else:
-                    return requests.get(address+url_suffix, data=data, timeout=2)
+                    return requests.get('http://'+address+url_suffix, data=data, timeout=2)
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
                 logging.debug('Caught exception :( "{}"'.format(e))
                 time.sleep(1)
