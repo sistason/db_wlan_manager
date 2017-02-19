@@ -22,3 +22,6 @@ Start with: python3 manager.py
 Use the flag -u if the manager should run as the 
 current user and won't do stuff requiring root 
 privileges (like changing MAC address [not yet working!])
+
+## Dependencies
+- python3-dnspython

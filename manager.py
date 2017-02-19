@@ -3,6 +3,7 @@
 import time
 import requests
 import logging
+import dns.resolver
 
 from interface import Interface
 
@@ -10,12 +11,18 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 class DBManager:
-    url = "http://www.wifionice.de/"
+    url = "www.wifionice.de"
+    url_cached_ip = None
 
     def __init__(self, user_mode):
         self.user_mode = user_mode
         self.is_online = None
         self.interface = None
+
+        self.resolver = dns.resolver.Resolver()
+        self.resolver.nameservers = ['172.16.0.1']
+        self.url_cached_ip = self.resolve_url()
+
         if not user_mode:
             self.interface = Interface()
 
@@ -53,13 +60,15 @@ class DBManager:
         if data is None:
             data = {}
 
+        address = self.url_cached_ip if self.url_cached_ip else self.url
+
         retries = 3
         while retries > 0:
             try:
                 if post:
-                    return requests.post(self.url+url_suffix, data=data, timeout=2)
+                    return requests.post(address+url_suffix, data=data, timeout=2)
                 else:
-                    return requests.get(self.url+url_suffix, data=data, timeout=2)
+                    return requests.get(address+url_suffix, data=data, timeout=2)
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
                 logging.debug('Caught exception :( "{}"'.format(e))
                 time.sleep(1)
@@ -68,6 +77,9 @@ class DBManager:
                 break
             retries -= 1
 
+    def resolve_url(self):
+        rrset = self.resolver.query(self.url).rrset
+        return rrset.items[0].address if rrset.items else None
 
 if __name__ == '__main__':
     import argparse
