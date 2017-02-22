@@ -47,7 +47,8 @@ class DBManager:
                     logging.info('I am online again! :)')
                 self.is_online = True
         else:
-            logging.warning('Return object from wifionice broken!: {}'.format(ret))
+            print('?', end=' ', flush=True)
+            logging.debug('Return object from wifionice broken!: {}'.format(ret))
 
     def login(self):
         """ Log in to the ICE Portal (wifionice) """
@@ -90,7 +91,7 @@ if __name__ == '__main__':
     args = argparser.parse_args()
 
     logging.basicConfig(format='%(message)s',
-                        level=logging.DEBUG)
+                        level=logging.INFO)
     # import pdb
     # pdb.set_trace()
 

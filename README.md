@@ -11,10 +11,9 @@ and will change your MAC when your data is drained.
 ICE-Wlan and saving it's MAC address, to change it back 
 later if it needed to be changed.
 
-## What's not working?
+## What's not yet working?
 - Changing the MAC address of the interface
 - Reloading your Wifi (for new IP, req. plugins for NM/wpa_supp/...?)
-- DNS. Getting the wifionice.de address by asking 172.16.0.1, not you primary DNS
 
 ## How do you use it?
 Start with: python3 manager.py
