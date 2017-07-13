@@ -30,7 +30,7 @@ class DBManager:
         while not time.sleep(1):
             self.update_online()
             if self.is_online:
-                print('.', end=' ', flush=True)
+                print('.', end='', flush=True)
                 continue
             self.login()
 
@@ -38,14 +38,16 @@ class DBManager:
         """ Check if we are online. Don't change the state if the check fails itself """
         ret = self._do_request()
         if ret and ret.status_code == 200:
-            if ret.text.count('offline') > 5:
+            txt = ret.text.lower()
+            if txt.count('offline') > 5:
                 if self.is_online is True or self.is_online is None:
                     logging.info('I am not online anymore! :(')
                 self.is_online = False
-            if ret.text.count('online') > 5:
+            if txt.count('online') > 5:
                 if self.is_online is False or self.is_online is None:
                     logging.info('I am online again! :)')
                 self.is_online = True
+
         else:
             print('?', end=' ', flush=True)
             logging.debug('Return object from wifionice broken!: {}'.format(ret))
@@ -62,6 +64,7 @@ class DBManager:
             data = {}
 
         address = self.url_cached_ip if self.url_cached_ip else self.url
+        url_suffix = '/de/' + url_suffix
 
         retries = 3
         while retries > 0:
