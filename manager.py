@@ -15,19 +15,20 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 class DBManager:
     url = "www.wifionice.de"
     api_url = "https://www.ombord.info/api/jsonp/user/"
-    url_cached_ip = None
-    new_api = None
 
     def __init__(self, user_mode):
         self.user_mode = user_mode
+        self.url_cached_ip = None
         self.is_online = None
         self.interface = None
-        self.json_decoder = json.JSONDecoder()
+        self.new_api = None
         self.quota = (0, 0)
+
+        self.json_decoder = json.JSONDecoder()
 
         self.resolver = dns.resolver.Resolver()
         self.resolver.nameservers = ['172.16.0.1']
-        self.url_cached_ip = self.resolve_url()
+        self.url_cached_ip = self.resolve_url(self.url)
 
     def run(self):
         try:
@@ -58,16 +59,20 @@ class DBManager:
             self.interface.randomize_mac()
 
     def _check_api(self):
+        logging.info('Checking API version...')
         try:
             ret = requests.get(self.api_url, timeout=5)
-            if ret.status_code == 404:
-                self.new_api = False
-                logging.debug('Using old API...')
-            else:
+            if ret.status_code != 404:
                 self.new_api = True
-                logging.debug('Using new API...')
+                logging.info('Using new API.')
+        except requests.Timeout:
+            pass
         except requests.ConnectionError as e:
             logging.debug('Connection Error: {}'.format(e))
+            return
+
+        self.new_api = False
+        logging.info('Using old API.')
 
     def update_online(self):
         if self.new_api is None:
@@ -86,7 +91,7 @@ class DBManager:
 
     def update_online_without_api(self):
         """ Check if we are online. Don't change the state if the check fails itself """
-        ret = requests.get('http://' + self.url_cached_ip + '/de/')
+        ret = requests.get('http://{}/de/'.format(self.url_cached_ip))
         if ret and ret.status_code == 200:
             txt = ret.text.lower()
             if txt.count('offline') > 5:
@@ -123,46 +128,26 @@ class DBManager:
             self.quota = (quota, limit)
 
     def _get_status_from_api(self):
+        ret = None
         try:
             ret = requests.get(self.api_url, timeout=5)
             return self.json_decoder.decode(re.sub(r'[\n\(\); ]', '', ret.text)[:-2] + '}')
-        except requests.ConnectTimeout:
-            return {}
+        except requests.Timeout:
+            pass
         except Exception as e:
-            logging.error('Error getting API response, was {}'.format(ret.text))
-            return {}
+            logging.error('Error getting API response, was {}'.format(ret.text if ret else e))
+        return {}
 
     def login(self):
         """ Log in to the ICE Portal (wifionice) """
         logging.info('Trying to log in...')
-        data = {}
-        suffix = '/de/?login'
-        self._do_request(url_suffix=suffix, post=True, data=data)
+        try:
+            requests.get('http://{}/de/?login'.format(self.url_cached_ip), timeout=4)
+        except ConnectionError:
+            return
 
-    def _do_request(self, url_suffix='', post=False, data=None):
-        """ Wrapper around the requests.get/post, for timeout/error handling"""
-        if data is None:
-            data = {}
-
-        address = self.url_cached_ip if self.url_cached_ip else self.url
-
-        retries = 3
-        while retries > 0:
-            try:
-                if post:
-                    return requests.post('http://'+address+url_suffix, data=data, timeout=2)
-                else:
-                    return requests.get('http://'+address+url_suffix, data=data, timeout=2)
-            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-                logging.debug('Caught exception :( "{}"'.format(e))
-                time.sleep(1)
-            except Exception as e:
-                logging.debug('Caught Exception "{}" while making a request'.format(e))
-                break
-            retries -= 1
-
-    def resolve_url(self):
-        rrset = self.resolver.query(self.url).rrset
+    def resolve_url(self, url):
+        rrset = self.resolver.query(url).rrset
         return rrset.items[0].address if rrset.items else None
 
 if __name__ == '__main__':
@@ -174,7 +159,7 @@ if __name__ == '__main__':
     args = argparser.parse_args()
 
     logging.basicConfig(format='%(message)s',
-                        level=logging.DEBUG)
+                        level=logging.INFO)
 
     manager = DBManager(args.user_mode)
     try:
