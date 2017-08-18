@@ -19,6 +19,7 @@ class DBManager:
     def __init__(self, user_mode):
         self.user_mode = user_mode
         self.url_cached_ip = None
+        self.api_url_cached_ip = None
         self.is_online = None
         self.interface = None
         self.new_api = None
@@ -29,6 +30,7 @@ class DBManager:
         self.resolver = dns.resolver.Resolver()
         self.resolver.nameservers = ['172.16.0.1']
         self.url_cached_ip = self.resolve_url(self.url)
+        self.api_url_cached_ip = self.resolve_url(self.api_url)
 
     def run(self):
         try:
@@ -61,7 +63,7 @@ class DBManager:
     def _check_api(self):
         logging.info('Checking API version...')
         try:
-            ret = requests.get(self.api_url, timeout=5)
+            ret = requests.get(self.api_url_cached_ip, timeout=5)
             if ret.status_code != 404:
                 self.new_api = True
                 logging.info('Using new API.')
