@@ -14,7 +14,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 
 class DBManager:
     url = "www.wifionice.de"
-    api_url = "https://www.ombord.info/api/jsonp/user/"
+    api_url = "www.ombord.info/api/jsonp/user/"
 
     def __init__(self, user_mode):
         self.user_mode = user_mode
@@ -30,7 +30,7 @@ class DBManager:
         self.resolver = dns.resolver.Resolver()
         self.resolver.nameservers = ['172.16.0.1']
         self.url_cached_ip = self.resolve_url(self.url)
-        self.api_url_cached_ip = self.resolve_url(self.api_url)
+        self.api_url_cached_ip = self.resolve_url(self.api_url.split('/', 1)[0])
 
     def run(self):
         try:
@@ -63,10 +63,11 @@ class DBManager:
     def _check_api(self):
         logging.info('Checking API version...')
         try:
-            ret = requests.get(self.api_url_cached_ip, timeout=5)
-            if ret.status_code != 404:
+            ret = requests.get('https://{}'.format(self.api_url_cached_ip), timeout=5, verify=False)
+            if ret.status_code != 404 and len(ret.text) > 60:
                 self.new_api = True
                 logging.info('Using new API.')
+                return
         except requests.Timeout:
             pass
         except requests.ConnectionError as e:
@@ -132,7 +133,7 @@ class DBManager:
     def _get_status_from_api(self):
         ret = None
         try:
-            ret = requests.get(self.api_url, timeout=5)
+            ret = requests.get('https://'+self.api_url, timeout=5)
             return self.json_decoder.decode(re.sub(r'[\n\(\); ]', '', ret.text)[:-2] + '}')
         except requests.Timeout:
             pass
