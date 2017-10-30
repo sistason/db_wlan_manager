@@ -13,24 +13,27 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 class DBManager:
-    url = "www.wifionice.de"
-    api_url = "www.ombord.info/api/jsonp/user/"
+    api_host = "www.wifionice.de"
+    api_site = "usage_info/"
+    api_host_new = "www.ombord.info"
+    api_site_new = "api/jsonp/user"
 
     def __init__(self, user_mode):
         self.user_mode = user_mode
-        self.url_cached_ip = None
-        self.api_url_cached_ip = None
-        self.is_online = None
         self.interface = None
+        self.quota = None
+
+        self.is_online = None
         self.new_api = None
-        self.quota = (0, 0)
 
         self.json_decoder = json.JSONDecoder()
+        self.session = requests.Session()
+        self.csrf_token = None
 
         self.resolver = dns.resolver.Resolver()
         self.resolver.nameservers = ['172.16.0.1']
-        self.url_cached_ip = self.resolve_url(self.url)
-        self.api_url_cached_ip = self.resolve_url(self.api_url.split('/', 1)[0])
+        self.api_host_ip = self.resolve_url(self.api_host)
+        self.api_host_new_ip = self.resolve_url(self.api_host_new)
 
     def run(self):
         try:
@@ -39,8 +42,10 @@ class DBManager:
                 if self.is_online:
                     self.manage_bandwidth()
                     print('.', end='', flush=True)
+                elif self.is_online is None:
                     continue
-                self.login()
+                else:
+                    self.login()
         except KeyboardInterrupt:
             pass
         finally:
@@ -48,11 +53,11 @@ class DBManager:
                 self.interface.close()
 
     def manage_bandwidth(self):
-        if self.quota == (0, 0):
+        if self.quota is None:
             # Without quota (old website), this does not work
             return
 
-        if self.quota[0] >= self.quota[1]:
+        if self.quota >= 1:
             if self.user_mode:
                 logging.info('Your traffic is being shaped, as you surpassed your data limit')
                 logging.info('To automatically reset your data limit, run this script as root')
@@ -60,29 +65,35 @@ class DBManager:
 
             self.interface.randomize_mac()
 
-    def _check_api(self):
-        logging.info('Checking API version...')
+    def _make_request(self, url, protocol='https'):
         try:
-            ret = requests.get('https://{}'.format(self.api_url_cached_ip), timeout=5, verify=False)
-            if ret.status_code != 404 and len(ret.text) > 60:
-                self.new_api = True
-                logging.info('Using new API.')
-                return
+            return self.session.get('{}://{}'.format(protocol, url), timeout=5, verify=False)
         except requests.Timeout:
-            pass
+            return False
         except requests.ConnectionError as e:
             logging.debug('Connection Error: {}'.format(e))
-            return
+            return False
 
-        self.new_api = False
-        logging.info('Using old API.')
+    def _check_api(self):
+        logging.info('Checking API version...')
+        ret = self._make_request(self.api_host_new_ip)
+        if ret is not None:
+            if ret and ret.status_code != 404 and len(ret.text) > 60:
+                self.new_api = True
+                logging.info('Using new API.')
+            else:
+                self.new_api = False
+                logging.info('Using old API.')
+
+        return self.new_api
 
     def update_online(self):
         if self.new_api is None:
             if self._check_api() is None:
+                print('api none')
                 return
 
-        on = self.update_online_with_api() if self.new_api else self.update_online_without_api()
+        on = self.update_online_new_api() if self.new_api else self.update_online_old_api()
         if on is False:
             if self.is_online is True or self.is_online is None:
                 logging.info('I am not online anymore! :(')
@@ -92,10 +103,15 @@ class DBManager:
                 logging.info('I am online again! :)')
             self.is_online = True
 
-    def update_online_without_api(self):
+    def update_online_old_api(self):
         """ Check if we are online. Don't change the state if the check fails itself """
-        ret = requests.get('http://{}/de/'.format(self.url_cached_ip))
+        ret = self._make_request('{}/de/'.format(self.api_host_ip), protocol='http')
         if ret and ret.status_code == 200:
+            if 'Data meter header' in ret.text:
+                self.update_quota(ret.text)
+
+            self.csrf_token = self._get_csrf(ret.text)
+
             txt = ret.text.lower()
             if txt.count('offline') > 5:
                 return False
@@ -105,7 +121,13 @@ class DBManager:
             print('?', end=' ', flush=True)
             logging.debug('Return object from wifionice broken!: {}'.format(ret))
 
-    def update_online_with_api(self):
+    @staticmethod
+    def _get_csrf(text):
+        search_string = 'name="CSRFToken" value="'
+        pos = text.find(search_string)
+        return text[pos+len(search_string): pos+len(search_string)+32]
+
+    def update_online_new_api(self):
         """
         "version":"1.9", "ip":"172.16.100.116", "mac":"6C:88:14:84:84:88", "online":"0", "timeleft":"0",
         "authenticated":"1", "userclass":"2", "expires":"Never", "timeused":"1206", "data_download_used":"9256202",
@@ -124,30 +146,30 @@ class DBManager:
         return status.get('online') == "1"
 
     def update_quota(self, user):
-        quota = user.get('data_download_used', '')
-        limit = user.get('data_download_limit', '')
-
-        if quota.isdigit() and limit.isdigit():
-            self.quota = (quota, limit)
+        if type(user) is dict:
+            quota = user.get('data_download_used', '')
+            limit = user.get('data_download_limit', '')
+            if quota.isdigit() and limit.isdigit():
+                self.quota = 1.0*quota/limit
+        else:
+            ret = self._make_request('{}/{}'.format(self.api_host, self.api_site), protocol='http')
+            if ret:
+                try:
+                    self.quota = float(ret.text)
+                except ValueError:
+                    pass
 
     def _get_status_from_api(self):
-        ret = None
-        try:
-            ret = requests.get('https://'+self.api_url, timeout=5)
+        ret = self._make_request('{}/{}'.format(self.api_host_new_ip, self.api_site_new))
+        if ret and ret.status_code == 200:
             return self.json_decoder.decode(re.sub(r'[\n\(\); ]', '', ret.text)[:-2] + '}')
-        except requests.Timeout:
-            pass
-        except Exception as e:
-            logging.error('Error getting API response, was {}'.format(ret.text if ret else e))
         return {}
 
     def login(self):
         """ Log in to the ICE Portal (wifionice) """
         logging.info('Trying to log in...')
-        try:
-            requests.get('http://{}/de/?login'.format(self.url_cached_ip), timeout=4)
-        except ConnectionError:
-            return
+        ret = self.session.post('http://{}/de/?login'.format(self.api_host_ip),
+                                data={'login': True, 'CSRFToken': self.csrf_token})
 
     def resolve_url(self, url):
         rrset = self.resolver.query(url).rrset
