@@ -57,13 +57,18 @@ class DBManager:
             # Without quota (old website), this does not work
             return
 
+        if not type(self.quota) is float or self.quota < 0 or self.quota > 1:
+            # Debug
+            print(self.quota)
+
         if self.quota >= 1:
             if self.user_mode:
                 logging.info('Your traffic is being shaped, as you surpassed your data limit')
                 logging.info('To automatically reset your data limit, run this script as root')
                 return
 
-            self.interface.randomize_mac()
+            if self.interface is not None:
+                self.interface.randomize_mac()
 
     def _make_request(self, url, protocol='https'):
         try:
@@ -168,8 +173,11 @@ class DBManager:
     def login(self):
         """ Log in to the ICE Portal (wifionice) """
         logging.info('Trying to log in...')
-        ret = self.session.post('http://{}/de/?login'.format(self.api_host_ip),
-                                data={'login': True, 'CSRFToken': self.csrf_token})
+        try:
+            ret = self.session.post('http://{}/de/?login'.format(self.api_host_ip),
+                                    data={'login': True, 'CSRFToken': self.csrf_token})
+        except requests.exceptions.ConnectionError:
+            logging.debug('Login Failed, probably bad wifi')
 
     def resolve_url(self, url):
         rrset = self.resolver.query(url).rrset
