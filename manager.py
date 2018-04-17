@@ -10,6 +10,7 @@ import re
 from interface import Interface
 
 logging.getLogger("requests").setLevel(logging.WARNING)
+logger = logging.getLogger(__file__)
 
 
 class DBManager:
@@ -18,9 +19,9 @@ class DBManager:
     api_host_new = "www.ombord.info"
     api_site_new = "api/jsonp/user"
 
-    def __init__(self, user_mode):
+    def __init__(self, user_mode, interface=None):
         self.user_mode = user_mode
-        self.interface = None
+        self.interface = interface
         self.quota = None
 
         self.is_online = None
@@ -31,21 +32,41 @@ class DBManager:
         self.csrf_token = None
 
         self.resolver = dns.resolver.Resolver()
-        self.resolver.nameservers = ['172.16.0.1']
+        self.resolver.nameservers = ['172.18.0.1']
         self.api_host_ip = self.resolve_url(self.api_host)
         self.api_host_new_ip = self.resolve_url(self.api_host_new)
 
-    def run(self):
+    def _print_quota(self):
+        return int(self.quota*100) if self.quota else 0
+
+    def run(self, login_only=False):
         try:
-            while not time.sleep(1):
-                self.update_online()
-                if self.is_online:
-                    self.manage_bandwidth()
-                    print('.', end='', flush=True)
-                elif self.is_online is None:
-                    continue
-                else:
-                    self.login()
+            if login_only:
+                iteration_ = 5
+                while iteration_ > 0:
+                    self.update_online()
+                    print('DB: !' if not self.is_online else 'DB: {:.0%}'.format(self.quota if self.quota else 0))
+                    if self.is_online:
+                        if not self.manage_bandwidth():
+                            return
+                    elif self.is_online is None:
+                        continue
+                    else:
+                        self.login()
+
+                    iteration_ -= 1
+            else:
+                while not time.sleep(1):
+                    self.update_online()
+                    if self.is_online:
+                        self.manage_bandwidth()
+                        if logger.level == logger.INFO:
+                            print('.{}'.format(self._print_quota()), end='', flush=True)
+                    elif self.is_online is None:
+                        continue
+                    else:
+                        self.login()
+
         except KeyboardInterrupt:
             pass
         finally:
@@ -59,16 +80,16 @@ class DBManager:
 
         if not type(self.quota) is float or self.quota < 0 or self.quota > 1:
             # Debug
-            print(self.quota)
+            logger.debug(self.quota)
 
         if self.quota >= 1:
-            if self.user_mode:
-                logging.info('Your traffic is being shaped, as you surpassed your data limit')
-                logging.info('To automatically reset your data limit, run this script as root')
-                return
+            logger.info('Your traffic is being shaped, as you surpassed your data limit')
 
             if self.interface is not None:
-                self.interface.randomize_mac()
+                if not self.interface.randomize_mac():
+                    logger.error('Could not randomize MAC, do you run this script as root?')
+                else:
+                    return True
 
     def _make_request(self, url, protocol='https'):
         try:
@@ -76,19 +97,19 @@ class DBManager:
         except requests.Timeout:
             return False
         except requests.ConnectionError as e:
-            logging.debug('Connection Error: {}'.format(e))
+            logger.warning('Connection Error: {}'.format(e))
             return False
 
     def _check_api(self):
-        logging.info('Checking API version...')
+        logger.info('Checking API version...')
         ret = self._make_request(self.api_host_new_ip)
         if ret is not None:
             if ret and ret.status_code != 404 and len(ret.text) > 60:
                 self.new_api = True
-                logging.info('Using new API.')
+                logger.info('Using new API.')
             else:
                 self.new_api = False
-                logging.info('Using old API.')
+                logger.info('Using old API.')
 
         return self.new_api
 
@@ -101,17 +122,21 @@ class DBManager:
         on = self.update_online_new_api() if self.new_api else self.update_online_old_api()
         if on is False:
             if self.is_online is True or self.is_online is None:
-                logging.info('I am not online anymore! :(')
+                logger.info('I am not online anymore! :(')
             self.is_online = False
         elif on is True:
             if self.is_online is False or self.is_online is None:
-                logging.info('I am online again! :)')
+                logger.info('I am online again! :)')
             self.is_online = True
 
     def update_online_old_api(self):
         """ Check if we are online. Don't change the state if the check fails itself """
         ret = self._make_request('{}/de/'.format(self.api_host_ip), protocol='http')
         if ret and ret.status_code == 200:
+            if self.interface is None:
+                # Interface uninitialized
+                self.interface = Interface(ip=self.api_host_ip)
+
             if 'Data meter header' in ret.text:
                 self.update_quota(ret.text)
 
@@ -123,8 +148,7 @@ class DBManager:
             if txt.count('online') > 5:
                 return True
         else:
-            print('?', end=' ', flush=True)
-            logging.debug('Return object from wifionice broken!: {}'.format(ret))
+            logger.debug('Return object from wifionice broken!: {}'.format(ret))
 
     @staticmethod
     def _get_csrf(text):
@@ -144,7 +168,7 @@ class DBManager:
         print(status)
         if self.interface is None and len(status.get('mac', '')) == 17:
             # Interface uninitialized
-            self.interface = Interface(status.get('mac'))
+            self.interface = Interface(mac=status.get('mac'))
 
         self.update_quota(status)
 
@@ -172,12 +196,12 @@ class DBManager:
 
     def login(self):
         """ Log in to the ICE Portal (wifionice) """
-        logging.info('Trying to log in...')
+        logger.info('Trying to log in...')
         try:
             ret = self.session.post('http://{}/de/?login'.format(self.api_host_ip),
                                     data={'login': True, 'CSRFToken': self.csrf_token})
         except requests.exceptions.ConnectionError:
-            logging.debug('Login Failed, probably bad wifi')
+            logger.debug('Login Failed, probably bad wifi')
 
     def resolve_url(self, url):
         rrset = self.resolver.query(url).rrset
@@ -188,14 +212,20 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description="Keeps your Wifi logged into the Wifionice")
     argparser.add_argument('-u', '--user_mode', action='store_true',
                            help='Run as unprivileged user, do everything possible without root')
+    argparser.add_argument('-l', '--login', action='store_true',
+                           help='Just check status and login, if not yet.')
+    argparser.add_argument('interface', type=str, nargs='?',
+                           help='Pass the interface')
 
     args = argparser.parse_args()
 
     logging.basicConfig(format='%(message)s',
                         level=logging.INFO)
+    if args.login:
+        logger.setLevel(logging.WARNING)
 
-    manager = DBManager(args.user_mode)
+    manager = DBManager(args.user_mode, interface=args.interface)
     try:
-        manager.run()
+        manager.run(login_only=args.login)
     except (KeyboardInterrupt, EOFError):
         pass
