@@ -2,6 +2,7 @@
 
 import time
 import logging
+import subprocess
 
 from db_lounge import DBLoungeManager
 from db_wifionice import DBWifiOnICEManager
@@ -23,6 +24,9 @@ class DBManager:
     def run(self):
         if self.batch_mode:
             self.manager = self.get_login_manager()
+            if not self.manager:
+                return
+
             iteration_ = 5
             while iteration_ > 0:
                 self.manager.update_online()
@@ -49,17 +53,29 @@ class DBManager:
                     self.manager.login()
 
     def get_login_manager(self):
-        ssid = "WIFIonICE"   # TODO
-        manager = self.managers.get(ssid)
-        if manager is None:
-            return
+        interface_ssids = []
+        res = subprocess.run(['/bin/ip', 'a'], stdout=subprocess.PIPE)
+        up_interfaces = [l.split(b':')[1].strip() for l in res.stdout.split(b'\n') if b"state UP" in l]
+        for interface in up_interfaces:
+            res = subprocess.run(['/sbin/iw', 'dev', interface, 'info'], stdout=subprocess.PIPE)
+            iw_result = res.stdout.decode('utf-8')
+            for line in iw_result.split('\n'):
+                if line.startswith('command failed'):
+                    break
+                if 'ssid' in line:
+                    interface_ssids.append(line.split()[-1])
+                    break
 
-        if type(manager) is type:
-            # If not yet in instanciated, do
-            manager = manager()
-            self.managers[ssid] = manager
+        for ssid in interface_ssids:
+            manager = self.managers.get(ssid)
+            if manager is None:
+                continue
 
-        return manager
+            if type(manager) is type:
+                # If not yet in instanciated, do
+                manager = manager()
+                self.managers[ssid] = manager
+            return manager
 
 
 if __name__ == '__main__':
@@ -70,8 +86,8 @@ if __name__ == '__main__':
 
     args = argparser.parse_args()
 
-    manager = DBManager(batch_mode=args.batch)
+    db_manager = DBManager(batch_mode=args.batch)
     try:
-        manager.run()
+        db_manager.run()
     except (KeyboardInterrupt, EOFError):
         pass
