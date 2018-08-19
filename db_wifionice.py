@@ -119,8 +119,11 @@ class DBWifiOnICEManager:
             if quota.isdigit() and limit.isdigit():
                 self.quota = 1.0*quota/limit
         else:
-            print(api_response)
-             #self.quota = float(api_response)
+            found = re.search(r" aria-valuenow=\"(\d+)\"", api_response)
+            if found:
+                quota = found.group(0)
+                if quota.isdigit():
+                    self.quota = int(quota)/100.0
 
     def _get_status_from_api(self):
         ret = self._make_request('{}/{}'.format(self.api_host_new_ip, self.api_site_new))
