@@ -57,7 +57,7 @@ class DBManager:
         res = subprocess.run(['/bin/ip', 'a'], stdout=subprocess.PIPE)
         up_interfaces = [l.split(b':')[1].strip() for l in res.stdout.split(b'\n') if b"state UP" in l]
         for interface in up_interfaces:
-            res = subprocess.run(['/sbin/iw', 'dev', interface, 'info'], stdout=subprocess.PIPE)
+            res = subprocess.run(['/sbin/iw', 'dev', interface, 'info'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             iw_result = res.stdout.decode('utf-8')
             for line in iw_result.split('\n'):
                 if line.startswith('command failed'):

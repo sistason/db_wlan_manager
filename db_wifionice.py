@@ -28,8 +28,12 @@ class DBWifiOnICEManager:
 
         self.resolver = dns.resolver.Resolver()
         self.resolver.nameservers = ['172.18.0.1']
-        self.api_host_ip = self.resolve_url(self.api_host)
-        self.api_host_new_ip = self.resolve_url(self.api_host_new)
+        try:
+            self.api_host_ip = self.resolve_url(self.api_host)
+            self.api_host_new_ip = self.resolve_url(self.api_host_new)
+        except dns.exception.Timeout:
+            self.api_host_ip = "172.18.0.1"
+            self.api_host_new_ip = "172.18.0.1"
 
     def get_quota(self):
         return int(self.quota*100) if self.quota else 0
