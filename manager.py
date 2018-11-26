@@ -36,6 +36,8 @@ class DBManager:
                 else:
                     self.manager.login()
 
+                time.sleep(1)
+
                 iteration_ -= 1
         else:
             while not time.sleep(1):
@@ -43,7 +45,7 @@ class DBManager:
                 self.manager.update_online()
                 if self.manager.is_online:
                     quota = self.manager.get_quota()
-                    if quota < 100:
+                    if quota < 1:
                         print('.{}'.format(quota), end='', flush=True)
                     else:
                         print("Quota surpassed, your traffic is being slowed! MAC-Change suggested")

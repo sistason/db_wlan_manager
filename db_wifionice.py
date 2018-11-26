@@ -36,7 +36,7 @@ class DBWifiOnICEManager:
             self.api_host_new_ip = "172.18.0.1"
 
     def get_quota(self):
-        return int(self.quota*100) if self.quota else 0
+        return self.quota if self.quota else 0
 
     def _make_request(self, url, protocol='https'):
         try:
@@ -122,12 +122,16 @@ class DBWifiOnICEManager:
             limit = api_response.get('data_download_limit', '')
             if quota.isdigit() and limit.isdigit():
                 self.quota = 1.0*quota/limit
-        else:
-            found = re.search(r" aria-valuenow=\"(\d+)\"", api_response)
-            if found:
-                quota = found.group(0)
-                if quota.isdigit():
-                    self.quota = int(quota)/100.0
+            return
+
+        if self.new_api is False:
+            ret = self._make_request("www.wifionice.de/usage_info", 'http')
+            if ret:
+                try:
+                    self.quota = float(ret.text)
+                except ValueError:
+                    pass
+
 
     def _get_status_from_api(self):
         ret = self._make_request('{}/{}'.format(self.api_host_new_ip, self.api_site_new))
