@@ -78,22 +78,27 @@ class DBLoungeManager:
         headers = {
             "Content-Type": "application/x-www-form-urlencoded"
         }
-        print(data)
-        print("""
-        button	kostenlos+einloggen
-challenge	fad088b67b2026c20d3d87d9a64d4afd
-custom	1
-haveTerms	1
-ll	de
-myLogin	agb
-nasid	db-lounge-bln006
-termsOK	on
-uamip	192.168.44.1
-uamport	80
-userurl	http://detectportal.firefox.com/success.txt""")
         try:
             ret = self.session.post('https://{}/{}'.format(self.api_host, self.api_site),
                                     data=data, headers=headers)
-            print(ret.text)
+            if ret.text.find('loading.gif'):
+                self.confirm_login(ret)
         except requests.exceptions.ConnectionError:
             logging.debug('Login Failed, probably bad wifi')
+
+    def confirm_login(self, login_ret):
+        confirm_soup = bs4.BeautifulSoup(login_ret.text, 'lxml')
+        refresh = confirm_soup.find('meta', attrs={'http-equiv': "refresh"})
+        if refresh:
+            content = refresh.attrs.get('content')
+            confirm_url = content[len('0;url='):]
+            if confirm_url:
+                try:
+                    ret = self.session.get(confirm_url)
+                    if ret.text.find("<div class=\"alert_success\">"):
+                        logging.info('Login Successful!')
+                        return
+                except requests.exceptions.ConnectionError:
+                    logging.debug('Login Confirm Failed, probably bad wifi')
+
+        logging.warning("Return from Portal malformed! Did the DB-Lounge website change?")
