@@ -10,10 +10,9 @@ and keep you logged into the different wlans of the DB
 
 
 ## What's not yet working?
-- DB Lounge Autologin. Not enough waiting time in there.
 - International/Some ICEs have a json-API for quota. 
 I did not ride enough in those... 
-
+- "Free @Bahnhofs Wlan"-Ding?
 
 ## How do you use it?
 Start with: python3 manager.py
