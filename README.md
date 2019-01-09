@@ -22,3 +22,7 @@ to log you in and terminate.
 
 ## Dependencies
 - python3-dnspython
+- python3-bs4 (beautifulsoup)
+
+### Install Dependencies on Ubuntu
+```sudo apt-get install python3 python3-bs4 python3-dnspython```
