@@ -20,5 +20,13 @@ Start with: python3 manager.py
 Use the flag -b for batch mode, which means it only tries 
 to log you in and terminate.
 
+### Network-Manager
+To use it with network-manager, go to the network-manager directory and ```sudo ./install.sh```
+If you connect with network-manager to a DB wifi, the tool will start in the background automatically and log the output to /var/log/dbwifi.
+
 ## Dependencies
 - python3-dnspython
+- python3-bs4 (beautifulsoup)
+
+### Install Dependencies on Ubuntu
+```sudo apt-get install python3 python3-bs4 python3-dnspython```
