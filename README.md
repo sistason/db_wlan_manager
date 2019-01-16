@@ -15,10 +15,10 @@ I did not ride enough in those...
 - "Free @Bahnhofs Wlan"-Ding?
 
 ## How do you use it?
-Start with: python3 manager.py
+Start with: python3 manager.py [ssid]
   
-Use the flag -b for batch mode, which means it only tries 
-to log you in and terminate.
+Use the flag -b for batch mode, which means it only tries to log you in and terminate.
+It will check the SSID automatically via ```ìw```, but it can be fixed via an argument.
 
 ### Network-Manager
 To use it with network-manager, go to the network-manager directory and ```sudo ./install.sh```
