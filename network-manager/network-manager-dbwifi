@@ -1,9 +1,10 @@
-#!/bin/sh
+#!/bin/bash
 
 case "$2" in
   up)
-    if nmcli -g TYPE,NAME connection show --active | grep -qE '802-11-wireless:(WIFIonICE|DBLounge)'; then
-      python3 /usr/share/db_wlan_manager/manager.py 2>&1 >/var/log/dbwifi
+    ssid=$(nmcli -g TYPE,NAME connection show --active | grep -oE '802-11-wireless:(WIFIonICE|DBLounge)')
+    if [[ $ssid ]]; then
+      python3 /usr/share/db_wlan_manager/manager.py -b $ssid 2>&1 >/var/log/dbwifi
     fi
     ;;
   down)

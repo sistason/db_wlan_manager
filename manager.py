@@ -97,7 +97,7 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description="Keeps your Wifi logged into the various DB Wifis")
     argparser.add_argument('-b', '--batch', action='store_true',
                            help='Just check status and login, if not yet.')
-    argparser.add_argument('ssid', type=str, help="If you already know the SSID and it's not gonna change")
+    argparser.add_argument('ssid', nargs="?", type=str, help="If you already know the SSID and it's not gonna change")
 
     args = argparser.parse_args()
 
