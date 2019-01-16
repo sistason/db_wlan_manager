@@ -1,0 +1,12 @@
+#!/bin/sh
+
+case "$2" in
+  up)
+    if nmcli -g TYPE,NAME connection show --active | grep -qE '802-11-wireless:(WIFIonICE|DBLounge)'; then
+      python3 /usr/share/db_wlan_manager/manager.py 2>&1 >/var/log/dbwifi
+    fi
+    ;;
+  down)
+    # Nothing to do: nm will kill all it's child processes when the iface does down.
+    ;;
+esac
