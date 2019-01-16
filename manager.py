@@ -13,9 +13,15 @@ class DBManager:
         DBLoungeManager.SSID: DBLoungeManager,
         DBWifiOnICEManager.SSID: DBWifiOnICEManager
     }
+    manager = None
 
-    def __init__(self, batch_mode=False):
+    def __init__(self, batch_mode=False, ssid=""):
         self.batch_mode = batch_mode
+        if ssid:
+            manager = self.managers.get(ssid)
+            if manager:
+                self.manager = manager()
+
         logging.basicConfig(level=logging.WARNING if batch_mode else logging.INFO)
 
         self.is_online = None
@@ -42,6 +48,9 @@ class DBManager:
         else:
             while not time.sleep(1):
                 self.manager = self.get_login_manager()
+                if not self.manager:
+                    continue
+
                 self.manager.update_online()
                 if self.manager.is_online:
                     quota = self.manager.get_quota()
@@ -55,6 +64,9 @@ class DBManager:
                     self.manager.login()
 
     def get_login_manager(self):
+        if self.manager is not None:
+            return self.manager
+
         interface_ssids = []
         res = subprocess.run(['/bin/ip', 'a'], stdout=subprocess.PIPE)
         up_interfaces = [l.split(b':')[1].strip() for l in res.stdout.split(b'\n') if b"state UP" in l]
@@ -85,10 +97,11 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description="Keeps your Wifi logged into the various DB Wifis")
     argparser.add_argument('-b', '--batch', action='store_true',
                            help='Just check status and login, if not yet.')
+    argparser.add_argument('ssid', type=str, help="If you already know the SSID and it's not gonna change")
 
     args = argparser.parse_args()
 
-    db_manager = DBManager(batch_mode=args.batch)
+    db_manager = DBManager(batch_mode=args.batch, ssid=args.ssid)
     try:
         db_manager.run()
     except (KeyboardInterrupt, EOFError):

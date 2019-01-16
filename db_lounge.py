@@ -41,6 +41,9 @@ class DBLoungeManager:
         ret = self._make_request("detectportal.firefox.com/success.txt", protocol="http")
         if ret is None:
             return
+#        if "Forbidden access" in ret.text:
+            # Redirect failed?
+#            print(ret.statuscode)
         if ret.text.strip() == 'success':
             if self.is_online is False or self.is_online is None:
                 logging.info('I am online again! :)')
@@ -69,6 +72,7 @@ class DBLoungeManager:
         """ Log in to the Lounge Portal """
         logging.info('Trying to log in...')
 
+        print(self.last_portal_soup)
         data = {item.attrs.get('name'): item.attrs.get('value')
                 for item in self.last_portal_soup.find_all('input', attrs={'type': 'hidden'})}
 
