@@ -36,7 +36,11 @@ class DBWifiOnICEManager:
             self.api_host_new_ip = "172.18.0.1"
 
     def get_quota(self):
-        return self.quota if self.quota else 0
+        quota = 0
+        if self.quota:
+            quota = self.quota
+
+        return quota
 
     def _make_request(self, url, protocol='https'):
         try:

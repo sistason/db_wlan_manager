@@ -55,7 +55,7 @@ class DBManager:
                 if self.manager.is_online:
                     quota = self.manager.get_quota()
                     if quota < 1:
-                        print('.{}'.format(quota), end='', flush=True)
+                        print('Quota: {0:.0%}\r'.format(quota), end='', flush=True)
                     else:
                         print("Quota surpassed, your traffic is being slowed! MAC-Change suggested")
                 elif self.manager.is_online is None:
