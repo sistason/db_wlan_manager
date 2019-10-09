@@ -6,12 +6,14 @@ import subprocess
 
 from db_lounge import DBLoungeManager
 from db_wifionice import DBWifiOnICEManager
+from db_cdwifi import DBCDWiFiManager
 
 
 class DBManager:
     managers = {
         DBLoungeManager.SSID: DBLoungeManager,
-        DBWifiOnICEManager.SSID: DBWifiOnICEManager
+        DBWifiOnICEManager.SSID: DBWifiOnICEManager,
+        DBCDWiFiManager.SSID: DBCDWiFiManager
     }
     manager = None
 
