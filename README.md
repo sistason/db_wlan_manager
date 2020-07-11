@@ -7,6 +7,13 @@ and keep you logged into the different wlans of the DB
 ## What's working?
 - Keeps you logged in
 - Keeping track of your spent data.
+Wifis:
+- WIFIOnICE/WIFI@DB (ICE-Wlan National?)
+- DBLounge (Lounge im Bahnhof)
+- CDWifi (Wifi in Czech-Trains)
+- Wifi@DB (Sammel-Wlan verschiedener Icomera-User)
+  - not yet implemented
+  - 
 
 
 ## What's not yet working?

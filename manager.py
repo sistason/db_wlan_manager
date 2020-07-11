@@ -7,15 +7,16 @@ import subprocess
 from db_lounge import DBLoungeManager
 from db_wifionice import DBWifiOnICEManager
 from db_cdwifi import DBCDWiFiManager
-from db_wifiatdb import DBWifiAtDBManager
+from db_wifiatdb import DBWifiAtDBDecider
 
 
 class DBManager:
     managers = {
         DBLoungeManager.SSID: DBLoungeManager,
         DBWifiOnICEManager.SSID: DBWifiOnICEManager,
+        DBWifiOnICEManager.SSID_secondary: DBWifiOnICEManager,
         DBCDWiFiManager.SSID: DBCDWiFiManager,
-        DBWifiAtDBManager.SSID: DBWifiAtDBManager
+        DBWifiAtDBDecider.SSID: DBWifiAtDBDecider
     }
     manager = None
 
@@ -88,6 +89,10 @@ class DBManager:
             manager = self.managers.get(ssid)
             if manager is None:
                 continue
+
+            if hasattr(manager, "PROVIDERS"):
+                provider = manager()
+                manager = provider.get_specific_provider()
 
             if type(manager) is type:
                 # If not yet in instanciated, do

@@ -6,17 +6,21 @@ import dns.resolver
 import json
 import re
 
+from db_generic_manager import DBManager
+
 logging.getLogger("requests").setLevel(logging.WARNING)
 
 
-class DBWifiOnICEManager:
+class DBWifiOnICEManager(DBManager):
     SSID = "WIFIonICE"
+    SSID_secondary = "WIFI@DB"
     api_host = "www.wifionice.de"
     api_site = "usage_info/"
     api_host_new = "www.ombord.info"
     api_site_new = "api/jsonp/user"
 
     def __init__(self):
+        super().__init__()
         self.quota = None
 
         self.is_online = None
@@ -135,7 +139,6 @@ class DBWifiOnICEManager:
                     self.quota = float(ret.text)
                 except ValueError:
                     pass
-
 
     def _get_status_from_api(self):
         ret = self._make_request('{}/{}'.format(self.api_host_new_ip, self.api_site_new))
